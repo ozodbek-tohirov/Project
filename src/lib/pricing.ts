@@ -8,7 +8,7 @@ export type Supplier = { id: SupplierId; name: string; unitPrice: number; delive
 export function isCustomSupplier(supplier: Supplier): boolean { return supplier.id.startsWith('custom:'); }
 export const MAX_QUANTITY = Math.floor((Number.MAX_SAFE_INTEGER - 35_000) / 42_000);
 export function quantityLimit(offers: readonly Supplier[] = suppliers): number {
-  return Math.min(MAX_QUANTITY, ...offers.map(offer => Math.floor((Number.MAX_SAFE_INTEGER - offer.deliveryFee) / offer.unitPrice)));
+  return offers.reduce((limit, offer) => Math.min(limit, Math.floor((Number.MAX_SAFE_INTEGER - offer.deliveryFee) / offer.unitPrice)), MAX_QUANTITY);
 }
 export function parseQuantity(text: string, offers: readonly Supplier[] = suppliers): number | null {
   if (!/^[0-9]+$/.test(text)) return null;

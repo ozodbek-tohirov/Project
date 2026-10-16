@@ -71,7 +71,7 @@ test('direct review access is helpful and back/forward preserves draft', async (
   await expect(page.getByTestId('review-total')).toHaveText('420 000 so‘m');
   await page.goBack(); await expect(page.getByRole('textbox',{name:'Nechta pachka kerak?'})).toHaveValue('10');
   await page.goForward(); await expect(page.getByTestId('review-total')).toHaveText('420 000 so‘m');
-  await page.reload(); await expect(page.getByRole('heading',{name:'Hali taklif tanlanmagan'})).toBeVisible();
+  await page.reload(); await expect(page.getByTestId('review-total')).toHaveText('420 000 so‘m'); await expect(page.getByRole('status')).toHaveCount(0);
 });
 test('radio selection is keyboard accessible', async ({page}) => {
   await page.goto('/compare');
