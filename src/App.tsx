@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, CheckCircle2, ChevronRight, Clock3, FileText, Info, Layers3, Minus, Package, Plus, ShieldCheck, Sparkles, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,17 +9,24 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { calculateTotal, cheapestIds, formatMoney, MAX_QUANTITY, parseQuantity, suppliers, validName, type Supplier, type SupplierId } from '@/lib/pricing';
 import { useRequest } from '@/state';
+import { Price, usePageMotion } from '@/components/motion';
 
 const demoText = 'Bu namunaviy loyiha. Haqiqiy xarid, band qilish yoki xabar yuborish amalga oshirilmaydi.';
 
 function PageFocus() {
-  const { pathname } = useLocation();
+  const { pathname, hash, key } = useLocation();
   useEffect(() => {
     const titles: Record<string, string> = { '/': 'A4 qog‘oz xaridi', '/compare': 'Takliflarni taqqoslash', '/confirmation': 'So‘rovni ko‘rib chiqish' };
     document.title = (titles[pathname] ?? 'Sahifa topilmadi') + ' — Ta’minCompare';
-    document.querySelector<HTMLElement>('h1')?.focus();
-    window.scrollTo(0, 0);
-  }, [pathname]);
+    const target = hash === '#quantity' ? document.getElementById('quantity') : hash === '#offers' ? document.querySelector<HTMLElement>('[role="radio"]') : null;
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    } else {
+      document.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [pathname, hash, key]);
   return null;
 }
 function Brand() {
@@ -38,36 +45,68 @@ function DemoNotice({ compact = false }: { compact?: boolean }) {
   return <div className={compact ? 'demo-notice compact' : 'demo-notice'}><ShieldCheck size={18} aria-hidden="true" /><p>{demoText}</p></div>;
 }
 function Steps({ current }: { current: 1 | 2 | 3 }) {
-  return <ol className="journey" aria-label="So‘rov bosqichlari">{['Miqdorni kiriting', 'Taklifni tanlang', 'So‘rovni tasdiqlang'].map((label, index) =>
-    <li key={label} className={index + 1 <= current ? 'active' : ''} aria-current={index + 1 === current ? 'step' : undefined}><span>{index + 1 < current ? <Check size={14} aria-hidden="true" /> : '0' + (index + 1)}</span>{label}{index < 2 && <ChevronRight size={15} className="step-chevron" aria-hidden="true" />}</li>
-  )}</ol>;
+  const navigate = useNavigate();
+  const { quantityText, supplierId } = useRequest();
+  const [hint, setHint] = useState('');
+  function goToStep(index: number) {
+    setHint('');
+    if (index === 0) navigate('/compare#quantity');
+    else if (index === 1) navigate('/compare#offers');
+    else if (parseQuantity(quantityText) === null) {
+      setHint('Davom etish uchun kamida 1 bo‘lgan butun miqdorni kiriting.');
+      navigate('/compare#quantity');
+    } else if (!supplierId) {
+      setHint('So‘rovni tasdiqlashdan oldin quyidagi takliflardan birini tanlang.');
+      navigate('/compare#offers');
+    } else navigate('/confirmation');
+  }
+  return <><ol className="journey" aria-label="So‘rov bosqichlari">{['Miqdorni kiriting', 'Taklifni tanlang', 'So‘rovni tasdiqlang'].map((label, index) =>
+    <li key={label} className={index + 1 <= current ? 'active' : ''} aria-current={index + 1 === current ? 'step' : undefined}><button type="button" className="step-action" onClick={() => goToStep(index)}><span>{'0' + (index + 1)}</span><span>{label}</span></button>{index < 2 && <ChevronRight size={15} className="step-chevron" aria-hidden="true" />}</li>
+  )}</ol>{hint && <p className="step-hint" role="status">{hint}</p>}</>;
 }
 function Home() {
+  const { setSupplier } = useRequest();
   return <main id="main-content" className="home-page">
     <section className="hero"><div className="hero-mesh" aria-hidden="true" /><div className="container hero-grid"><div className="hero-copy">
       <span className="eyebrow"><span className="tiny-dot" /> KICHIK BIZNES UCHUN XARID YORDAMCHISI</span>
-      <h1 tabIndex={-1}>Xaridingiz uchun<br /><span>eng mos taklif.</span></h1>
+      <h1 tabIndex={-1}><span className="headline-line">Xaridingiz uchun</span><span className="headline-line headline-accent">eng mos taklif.</span></h1>
       <p>A4 qog‘oz uchun uchta ta’minotchining narxi, yetkazish haqi va muddatini bir joyda taqqoslang.</p>
       <Button asChild size="lg"><Link to="/compare">Taqqoslashni boshlash <ArrowRight size={18} aria-hidden="true" /></Link></Button>
       <span className="hero-note"><CheckCircle2 size={15} aria-hidden="true" /> Ro‘yxatdan o‘tish shart emas · Hisoblash bepul</span>
-    </div><div className="paper-scene" aria-label="A4 qog‘oz takliflari haqida"><div className="paper-back" /><div className="paper-sheet">
+    </div><div className="paper-scene" data-parallax aria-label="A4 qog‘oz takliflari haqida"><div className="paper-back" /><div className="paper-sheet">
       <div className="sheet-top"><span className="sheet-icon"><FileText size={28} aria-hidden="true" /></span><span className="sheet-a4">A4</span></div>
       <span className="eyebrow">BIZNESINGIZ UCHUN</span><h2>Bir xil mahsulot.<br />Uch xil taklif.</h2>
       <div className="sheet-rules"><span /><span /><span /></div>
       <div className="sheet-bottom"><span>Qog‘oz xaridini<br /><strong>aniq hisoblang.</strong></span><ArrowUpRight size={28} aria-hidden="true" /></div>
     </div><div className="floating-note"><span><CheckCheck size={22} aria-hidden="true" /></span><div><strong>Yashirin xarajatlarsiz</strong><small>Yetkazish haqi jami narxda</small></div></div></div></div></section>
-    <section className="container how-section"><div className="section-heading"><div><span className="eyebrow">ODDIY VA TUSHUNARLI</span><h2>To‘g‘ri tanlov — uch qadamda</h2></div><p>Kerakli miqdordan aniq hisob-kitobgacha.</p></div>
+    <section className="container how-section"><div className="section-heading" data-reveal><div><span className="eyebrow">ODDIY VA TUSHUNARLI</span><h2>To‘g‘ri tanlov — uch qadamda</h2></div><p>Kerakli miqdordan aniq hisob-kitobgacha.</p></div>
       <div className="how-grid">{[
         { icon: Package, title: 'Miqdorni kiriting.', text: 'Nechta pachka A4 qog‘oz kerakligini belgilang.' },
         { icon: Layers3, title: 'Takliflarni solishtiring.', text: 'Jami xarajat va yetkazish muddatini yonma-yon ko‘ring.' },
         { icon: CheckCircle2, title: 'Eng mosini tanlang.', text: 'Tanlovingizni tekshirib, namunaviy so‘rovni tasdiqlang.' },
-      ].map(({ icon: Icon, title, text }, index) => <div className="how-item" key={title}><div className="how-top"><span className="how-icon"><Icon size={22} aria-hidden="true" /></span><span className="how-number">0{index + 1}</span></div><h3>{title}</h3><p>{text}</p></div>)}</div>
+      ].map(({ icon: Icon, title, text }, index) => <Link to={index === 0 ? '/compare#quantity' : '/compare#offers'} className="how-item" data-reveal data-delay={index * 80} key={title}><div className="how-top"><span className="how-icon"><Icon size={22} aria-hidden="true" /></span><span className="how-number">0{index + 1} <ArrowUpRight size={16} aria-hidden="true" /></span></div><h3>{title}</h3><p>{text}</p></Link>)}</div>
     </section>
+    <Benefits />
+    <PricingExplainer />
     <section className="container overview-section"><div className="section-heading"><div><span className="eyebrow">TAQQOSLASH UCHUN TAYYOR</span><h2>Uchta ta’minotchi. Bitta aniq hisob.</h2></div><Link to="/compare" className="text-link">Takliflarni ko‘rish <ArrowRight size={16} aria-hidden="true" /></Link></div>
-      <div className="overview-grid">{suppliers.map(supplier => <Card className="overview-card" key={supplier.id}><span className={'supplier-avatar avatar-' + supplier.id}>{supplier.id}</span><div><h3>{supplier.name}</h3><p>{formatMoney(supplier.unitPrice)} <span>/ pachka</span></p></div><span className="overview-delivery"><Clock3 size={15} aria-hidden="true" />{supplier.days} kun</span></Card>)}</div>
+      <div className="overview-grid">{suppliers.map((supplier, index) => <Card className="overview-card" data-reveal data-delay={index * 70} key={supplier.id}><Link to="/compare#offers" onClick={() => setSupplier(supplier.id)} className="overview-card-link" aria-label={supplier.name + ' taklifini ko‘rish'}><span className={'supplier-avatar avatar-' + supplier.id}>{supplier.id}</span><div><h3>{supplier.name}</h3><p>{formatMoney(supplier.unitPrice)} <span>/ pachka</span></p><small>{supplier.deliveryFee === 0 ? 'Yetkazish bepul' : 'Yetkazish: ' + formatMoney(supplier.deliveryFee)}</small></div><span className="overview-delivery"><Clock3 size={15} aria-hidden="true" />{supplier.days} kun</span><ArrowUpRight className="overview-arrow" size={18} aria-hidden="true" /></Link></Card>)}</div>
+      <div className="closing-cta" data-reveal><div><span className="eyebrow">KEYINGI XARIDINGIZNI REJALASHTIRING</span><h2>Qaror sizdan. Aniq hisob bizdan.</h2><p>Kerakli miqdorni kiriting, qolganini birga hisoblaymiz.</p></div><Button asChild size="lg"><Link to="/compare">Narxlarni hisoblash <ArrowRight size={18} aria-hidden="true" /></Link></Button></div>
       <DemoNotice />
     </section>
   </main>;
+}
+function Benefits() {
+  return <section className="container benefits-section"><div className="benefits-art" data-reveal><img src="/illustrations/paper-supply.svg" width="720" height="520" loading="lazy" decoding="async" alt="A4 qog‘oz pachkalari va aniq hisob-kitobni ifodalovchi tasvir" /><span className="art-caption"><Package size={17} aria-hidden="true" /> A4 qog‘oz · Uchta tayyor taklif</span></div><div className="benefits-copy" data-reveal data-delay="80"><span className="eyebrow">FAQAT BIRLIK NARXIGA QARAMANG</span><h2>Eng past narx har doim<br />eng kam xarajat emas.</h2><p>Yetkazish haqi va xarid miqdori yakuniy narxni o‘zgartiradi. Shuning uchun barcha xarajatlarni birga solishtiramiz.</p><ul>{[
+    { icon: FileText, title: 'Xarajatlar ochiq ko‘rsatiladi', text: 'Mahsulot narxi va bir martalik yetkazish haqi alohida ko‘rinadi.' },
+    { icon: Clock3, title: 'Narx bilan birga muddatni ham baholang', text: 'Tezroq yetkazish muhimmi yoki kamroq xarajat? Qarorni o‘zingiz qabul qilasiz.' },
+    { icon: ShieldCheck, title: 'Hech qanday majburiyatsiz sinab ko‘ring', text: 'Hisoblang va namunaviy so‘rovni ko‘ring. To‘lov yoki ro‘yxatdan o‘tish talab qilinmaydi.' },
+  ].map(({ icon: Icon, title, text }) => <li key={title}><span><Icon size={20} aria-hidden="true" /></span><div><h3>{title}</h3><p>{text}</p></div></li>)}</ul></div></section>;
+}
+function PricingExplainer() {
+  const { quantityText, setQuantity } = useRequest();
+  const quantity = parseQuantity(quantityText);
+  const cheapest = quantity === null ? [] : cheapestIds(quantity);
+  return <section className="container pricing-explainer" data-reveal><div className="explainer-copy"><span className="eyebrow">HISOB-KITOB QANDAY ISHLAYDI?</span><h2>Miqdor o‘zgarsa,<br />eng mos taklif ham o‘zgaradi.</h2><p>5 va 10 pachka uchun hisobni sinab ko‘ring. Yetkazish haqi har bir buyurtmaga faqat bir marta qo‘shiladi.</p><div className="formula"><span>Miqdor</span><b>×</b><span>Birlik narxi</span><b>+</b><span>Yetkazish</span><b>=</b><strong>Jami</strong></div><Link className="text-link" to="/compare#quantity">O‘z miqdoringizni kiriting <ArrowRight size={17} aria-hidden="true" /></Link></div><div className="example-calculator"><div className="example-header"><h3>Amalda sinab ko‘ring</h3><div className="quantity-presets" aria-label="Namunaviy miqdor">{[5, 10].map(value => <button type="button" key={value} aria-pressed={quantity === value} onClick={() => setQuantity(String(value))}>{value} pachka</button>)}</div></div><p className="example-quantity">{quantity === null ? 'Hisoblash uchun miqdorni tanlang' : quantity + ' pachka uchun jami xarajat'}</p><div className="example-rows">{suppliers.map(supplier => <div className={'example-row ' + (cheapest.includes(supplier.id) ? 'example-best' : '')} key={supplier.id}><span className={'supplier-avatar avatar-' + supplier.id}>{supplier.id}</span><div><strong>{supplier.name}</strong><span>{supplier.days} kunda yetkazish</span></div><strong><Price value={quantity === null ? '—' : formatMoney(calculateTotal(supplier, quantity))} /></strong>{cheapest.includes(supplier.id) && <CheckCircle2 size={17} className="example-check" aria-label="Eng arzon" />}</div>)}</div><p className="example-note"><Info size={15} aria-hidden="true" />Tanlangan miqdor taqqoslash sahifasida ham saqlanadi.</p></div></section>;
 }
 function QuantityControl() {
   const { quantityText, setQuantity } = useRequest();
@@ -83,15 +122,15 @@ function QuantityControl() {
   </section>;
 }
 function SupplierCard({ supplier, cheapest, tied }: { supplier: Supplier; cheapest: boolean; tied: boolean }) {
-  const { quantityText, supplierId } = useRequest();
+  const { quantityText, supplierId, setSupplier } = useRequest();
   const quantity = parseQuantity(quantityText);
   const selected = supplierId === supplier.id;
-  return <Card className={'supplier-card ' + (selected ? 'selected' : '')} data-testid={'supplier-' + supplier.id}>
+  return <Card className={'supplier-card ' + (selected ? 'selected' : '')} data-testid={'supplier-' + supplier.id} onClick={event => { if (!(event.target as HTMLElement).closest('label,button,a,input')) setSupplier(supplier.id); }}>
     <div className="card-heading"><span className={'supplier-avatar avatar-' + supplier.id}>{supplier.id}</span><span className="card-category">A4 QOG‘OZ</span>{selected && <span className="selected-check" aria-label="Tanlangan"><Check size={15} aria-hidden="true" /></span>}</div>
     <h2>{supplier.name}</h2>
     <div className="card-tag-line">{cheapest ? <span className="best-badge"><Sparkles size={13} aria-hidden="true" />{tied ? 'Eng arzon — teng taklif' : 'Eng arzon taklif'}</span> : <span className="supplier-descriptor">{supplier.id === 'A' ? 'Eng qisqa yetkazish muddati' : supplier.id === 'B' ? 'Bir pachka narxi eng past' : 'Yetkazish haqi olinmaydi'}</span>}</div>
     <dl className="price-details"><div><dt><FileText size={16} aria-hidden="true" />Bir pachka narxi</dt><dd>{formatMoney(supplier.unitPrice)}</dd></div><div><dt><Truck size={16} aria-hidden="true" />Yetkazish haqi</dt><dd className={supplier.deliveryFee === 0 ? 'free-delivery' : ''}>{supplier.deliveryFee === 0 ? 'Bepul' : formatMoney(supplier.deliveryFee)}</dd></div><div><dt><Clock3 size={16} aria-hidden="true" />Yetkazish muddati</dt><dd>{supplier.days} kun</dd></div></dl>
-    <div className="card-total"><span>Jami xarajat <small>{quantity === null ? 'Miqdorni tekshiring' : quantity + ' pachka uchun'}</small></span><strong data-testid={'total-' + supplier.id}>{quantity === null ? '—' : formatMoney(calculateTotal(supplier, quantity))}</strong><p>{quantity === null ? 'Hisoblash uchun to‘g‘ri miqdor kiriting.' : quantity + ' × ' + formatMoney(supplier.unitPrice) + ' + ' + formatMoney(supplier.deliveryFee)}</p></div>
+    <div className="card-total"><span>Jami xarajat <small>{quantity === null ? 'Miqdorni tekshiring' : quantity + ' pachka uchun'}</small></span><strong data-testid={'total-' + supplier.id}><Price value={quantity === null ? '—' : formatMoney(calculateTotal(supplier, quantity))} /></strong><p>{quantity === null ? 'Hisoblash uchun to‘g‘ri miqdor kiriting.' : quantity + ' × ' + formatMoney(supplier.unitPrice) + ' + ' + formatMoney(supplier.deliveryFee)}</p></div>
     <Label htmlFor={'select-' + supplier.id} className={'select-offer ' + (selected ? 'is-selected' : '')}><RadioGroupItem id={'select-' + supplier.id} value={supplier.id} aria-label={supplier.name + ' taklifini tanlash'} /><span>{selected ? 'Taklif tanlandi' : 'Taklifni tanlash'}</span>{selected ? <Check size={16} aria-hidden="true" /> : <ArrowRight size={16} aria-hidden="true" />}</Label>
   </Card>;
 }
@@ -116,9 +155,10 @@ function Compare() {
   return <main id="main-content" className="container workspace"><div className="workspace-top"><span className="eyebrow"><span className="tiny-dot" /> XARIDNI REJALASHTIRING</span><span className="subtle-label"><FileText size={14} aria-hidden="true" /> A4 qog‘oz</span></div>
     <div className="page-heading"><h1 tabIndex={-1}>Yetkazib beruvchilarni taqqoslang</h1><p>Miqdorni kiriting va jami xarajat hamda yetkazish muddatiga qarab eng mos taklifni tanlang.</p></div>
     <Steps current={2} /><QuantityControl />
-    <div className="comparison-heading"><h2>Mavjud takliflar <span>3 ta ta’minotchi</span></h2><span className="comparison-legend"><span /> Eng past jami narx belgilanadi</span></div>
+    <div className="comparison-heading" id="offers"><h2>Mavjud takliflar <span>3 ta ta’minotchi</span></h2><span className="comparison-legend"><span /> Eng past jami narx belgilanadi</span></div>
     <RadioGroup onKeyDownCapture={handleOfferKeys} value={supplierId ?? ''} onValueChange={value => setSupplier(value as SupplierId)} aria-label="Yetkazib beruvchini tanlang" className="supplier-grid">{suppliers.map(supplier => <SupplierCard key={supplier.id} supplier={supplier} cheapest={cheapest.includes(supplier.id)} tied={cheapest.length > 1} />)}</RadioGroup>
     <div className="calculation-note"><Info size={16} aria-hidden="true" /><p>Jami xarajat = miqdor × bir pachka narxi + yetkazish haqi. Yetkazish haqi buyurtmaga faqat bir marta qo‘shiladi.</p></div>
+    <p className="sr-only" aria-live="polite" aria-atomic="true">{selected && quantity !== null ? selected.name + ' tanlandi. Jami ' + formatMoney(calculateTotal(selected, quantity)) + '.' : ''}</p>
     <section className={'selection-summary ' + (selected ? 'has-selection' : '')} aria-label="Tanlangan taklif"><div className="summary-icon">{selected ? <CheckCheck size={23} aria-hidden="true" /> : <Package size={23} aria-hidden="true" />}</div><div className="summary-copy"><h2>{selected ? selected.name : 'Sizga mos taklifni tanlang'}</h2><p>{selected ? (quantity === null ? 'Davom etish uchun miqdorni to‘g‘rilang.' : quantity + ' pachka · Yetkazish: ' + selected.days + ' kun') : 'Davom etish uchun yuqoridagi ta’minotchilardan birini belgilang.'}</p></div><div className="summary-action">{selected && <strong data-testid="selected-total">{quantity === null ? '—' : formatMoney(calculateTotal(selected, quantity))}</strong>}{canContinue ? <Button asChild><Link to="/confirmation">So‘rovni ko‘rib chiqish <ArrowRight size={17} aria-hidden="true" /></Link></Button> : <Button disabled>So‘rovni ko‘rib chiqish <ArrowRight size={17} aria-hidden="true" /></Button>}</div></section>
     <DemoNotice compact />
   </main>;
@@ -147,6 +187,8 @@ function Confirmation() {
 }
 function NotFound() { return <main id="main-content" className="container empty-page"><h1 tabIndex={-1}>Sahifa topilmadi</h1><p>Kerakli taklifni taqqoslash sahifasidan topishingiz mumkin.</p><Button asChild><Link to="/compare">Takliflarga o‘tish <ArrowRight size={17} aria-hidden="true" /></Link></Button></main>; }
 export function App() {
-  return <><a className="skip-link" href="#main-content">Asosiy mazmunga o‘tish <ArrowDown size={16} aria-hidden="true" /></a><Header /><PageFocus /><Routes><Route path="/" element={<Home />} /><Route path="/compare" element={<Compare />} /><Route path="/confirmation" element={<Confirmation />} /><Route path="*" element={<NotFound />} /></Routes><Footer /></>;
+  const { pathname } = useLocation();
+  usePageMotion(pathname);
+  return <><a className="skip-link" href="#main-content">Asosiy mazmunga o‘tish <ArrowDown size={16} aria-hidden="true" /></a><Header /><PageFocus /><div className="route-stage" key={pathname}><Routes><Route path="/" element={<Home />} /><Route path="/compare" element={<Compare />} /><Route path="/confirmation" element={<Confirmation />} /><Route path="*" element={<NotFound />} /></Routes></div><Footer /></>;
 }
 

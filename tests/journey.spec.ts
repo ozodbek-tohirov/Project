@@ -79,6 +79,48 @@ test('radio selection is keyboard accessible', async ({page}) => {
   await first.focus(); await page.keyboard.press('Space'); await expect(first).toBeChecked();
   await page.keyboard.press('ArrowRight'); await expect(page.getByRole('radio',{name:'B ta’minotchi taklifini tanlash'})).toBeChecked();
 });
+test('all three step controls navigate to the real task and guard review', async ({page}) => {
+  await page.goto('/compare');
+  await page.getByRole('button', {name:'03 So‘rovni tasdiqlang'}).click();
+  await expect(page).toHaveURL(/\/compare#offers$/);
+  await expect(page.getByRole('status')).toContainText('takliflardan birini tanlang');
+  await page.getByRole('button', {name:'01 Miqdorni kiriting'}).click();
+  await expect(page.getByRole('textbox', {name:'Nechta pachka kerak?'})).toBeFocused();
+  await page.getByRole('textbox', {name:'Nechta pachka kerak?'}).fill('0');
+  await page.getByRole('button', {name:'03 So‘rovni tasdiqlang'}).click();
+  await expect(page).toHaveURL(/#quantity$/);
+  await expect(page.getByRole('status')).toContainText('butun miqdorni kiriting');
+  await page.getByRole('textbox', {name:'Nechta pachka kerak?'}).fill('10');
+  await page.getByRole('button', {name:'02 Taklifni tanlang'}).click();
+  await expect(page.getByRole('radio', {name:'A ta’minotchi taklifini tanlash'})).toBeFocused();
+  await page.getByTestId('supplier-B').getByRole('heading').click();
+  await expect(page.getByRole('radio', {name:'B ta’minotchi taklifini tanlash'})).toBeChecked();
+  await page.getByRole('button', {name:'03 So‘rovni tasdiqlang'}).click();
+  await expect(page.getByTestId('review-total')).toHaveText('415 000 so‘m');
+  await page.getByRole('button', {name:'01 Miqdorni kiriting'}).click();
+  await expect(page.getByRole('textbox', {name:'Nechta pachka kerak?'})).toHaveValue('10');
+});
+test('homepage calculator and supplier links carry choices into comparison', async ({page}) => {
+  await page.goto('/');
+  const preset = page.getByRole('button', {name:'10 pachka', exact:true});
+  await preset.click();
+  await expect(preset).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('.example-best')).toContainText('B ta’minotchi');
+  await expect(page.locator('.example-best')).toContainText('415 000 so‘m');
+  await page.getByRole('link', {name:'B ta’minotchi taklifini ko‘rish'}).click();
+  await expect(page.getByRole('textbox', {name:'Nechta pachka kerak?'})).toHaveValue('10');
+  await expect(page.getByRole('radio', {name:'B ta’minotchi taklifini tanlash'})).toBeChecked();
+  await expect(page.getByTestId('selected-total')).toHaveText('415 000 so‘m');
+});
+test('reduced motion keeps content visible and stops animation and parallax', async ({page}) => {
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('/');
+  await expect(page.getByRole('heading', {name:/Eng past narx har doim/})).toBeVisible();
+  await page.locator('.benefits-art img').scrollIntoViewIfNeeded();
+  expect(await page.locator('.benefits-art img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  expect(await page.locator('.paper-scene').evaluate(element => getComputedStyle(element).transform)).toBe('none');
+  expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0);
+});
 for (const width of [375,768,1024,1440]) {
   test('responsive layouts at ' + width, async ({page}) => {
     await page.setViewportSize({width,height:1000});
@@ -93,12 +135,12 @@ for (const width of [375,768,1024,1440]) {
         if (width >= 1024) expect(Math.abs(first!.y - second!.y)).toBeLessThan(2);
         else expect(second!.y).toBeGreaterThan(first!.y + first!.height);
       }
-      await page.screenshot({path:'test-results/' + width + (route === '/' ? '-home' : '-compare') + '.png',fullPage:true});
+      await page.screenshot({path:'test-results/' + width + (route === '/' ? '-home' : '-compare') + '.png',fullPage:true, animations:'disabled'});
     }
     await page.getByRole('radio',{name:'B ta’minotchi taklifini tanlash'}).check();
     await page.getByRole('link',{name:'So‘rovni ko‘rib chiqish'}).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.screenshot({path:'test-results/' + width + '-confirmation.png',fullPage:true});
+    await page.screenshot({path:'test-results/' + width + '-confirmation.png',fullPage:true, animations:'disabled'});
   });
 }
 

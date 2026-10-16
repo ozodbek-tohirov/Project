@@ -4,7 +4,8 @@ Verified on 2026-10-16 using the production build and local Google Chrome.
 ## Automated results
 - [x] TypeScript and production build: PASS.
 - [x] Pricing, formatting and validation: 25/25 unit tests PASS.
-- [x] Browser journeys: 9/9 tests PASS.
+- [x] Browser journeys: 12/12 tests PASS.
+- [x] Live Playwright MCP audit: 375/768/1024/1440px; quantity and supplier persistence, three-step navigation, B/10 submission, local illustration, no overflow, reduced motion.
 - [x] Dependency audit after toolchain updates: 0 vulnerabilities.
 
 ## Competition requirements
@@ -21,6 +22,9 @@ Verified on 2026-10-16 using the production build and local Google Chrome.
 - [x] Success appears only after valid submission; draft changes invalidate it.
 - [x] No outbound order POST and no browser runtime errors during the submission journey.
 - [x] Increment/decrement, invalid-input recovery, links and keyboard radio selection work.
+- [x] All three numbered step buttons navigate to the correct task; premature review shows guidance and focuses the missing input.
+- [x] Homepage 5/10-pack examples and supplier links preserve choices in comparison.
+- [x] Reduced motion leaves content visible, disables parallax and produces no running animations.
 - [x] Home, comparison and review have no horizontal overflow at 375, 768, 1024 and 1440px.
 - [x] Comparison cards stack below 1024px and align in three columns at desktop widths.
 - [x] Page headings receive navigation focus; screenshots reviewed for desktop home/comparison and mobile home/review.

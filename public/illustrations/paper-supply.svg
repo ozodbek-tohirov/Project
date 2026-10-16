@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="0" x2="650" y2="510" gradientUnits="userSpaceOnUse"><stop stop-color="#f6f3ff"/><stop offset="1" stop-color="#e8eefb"/></linearGradient>
+    <linearGradient id="top" x1="190" y1="150" x2="490" y2="330" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#f2f0ff"/></linearGradient>
+    <linearGradient id="box" x1="180" y1="280" x2="520" y2="480" gradientUnits="userSpaceOnUse"><stop stop-color="#b3a3f9"/><stop offset="1" stop-color="#7660d9"/></linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="720" height="520" rx="28" fill="url(#bg)"/>
+  <g opacity=".5" stroke="#d5d8ed"><path d="m0 350 360-208 360 208M0 405l360-208 360 208M0 460l360-208 360 208M0 515l360-208 360 208"/><path d="M80 520 720 150M0 475 720 60M0 370 640 0M0 265 460 0"/></g>
+  <ellipse cx="370" cy="418" rx="195" ry="30" fill="#7a66be" opacity=".16" filter="url(#shadow)"/>
+  <path d="m170 301 183 101 191-111-182-100z" fill="#cfc4fc"/>
+  <path d="m170 301 183 101v73L170 374z" fill="url(#box)"/>
+  <path d="m353 402 191-111v74L353 475z" fill="#6f59c4"/>
+  <path d="m196 280 158 88 160-93-158-88z" fill="#fff" stroke="#ddd9ed"/>
+  <path d="m196 280 158 88v30l-158-88z" fill="#e7e6f2"/>
+  <path d="m354 368 160-93v30l-160 93z" fill="#f9f8ff"/>
+  <g stroke="#cbc9df"><path d="m202 289 152 85 154-89M202 296l152 85 154-89M202 303l152 85 154-89"/></g>
+  <path d="m189 231 165 92 174-101-165-92z" fill="url(#top)" stroke="#ddd9ed"/>
+  <path d="m189 231 165 92v36l-165-92z" fill="#e8e5f3"/>
+  <path d="m354 323 174-101v36L354 359z" fill="#faf9ff"/>
+  <g stroke="#cfccdf"><path d="m195 240 159 89 168-97M195 248l159 89 168-97M195 256l159 89 168-97"/></g>
+  <path d="m271 185 82 46 92-53 46 26-92 53-46-26-36 21-46-26 36-21z" fill="#533afd" opacity=".9"/>
+  <path d="m271 185 46 26v45l-46-26z" fill="#4434d4"/>
+  <path d="m399 257 92-53v36l-92 53z" fill="#4434d4"/>
+  <text x="355" y="176" fill="#a29bb8" font-size="25" font-family="Inter,Arial,sans-serif" transform="rotate(29 355 176)">A4</text>
+  <g transform="translate(515 108)"><circle cx="0" cy="0" r="33" fill="#fff" stroke="#e3e8ee"/><path d="m-13 0 9 9L15-10" stroke="#147d52" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g transform="translate(127 165)"><rect x="-30" y="-30" width="60" height="60" rx="17" fill="#fff" stroke="#e3e8ee"/><path d="M-11-14H5l7 7v21h-23zM5-14v8h7M-5 1h11M-5 7h11" stroke="#533afd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <circle cx="582" cy="382" r="5" fill="#b8a9ee"/><circle cx="135" cy="357" r="4" fill="#9db6b1"/><circle cx="303" cy="86" r="4" fill="#c3b7ef"/>
+</svg>

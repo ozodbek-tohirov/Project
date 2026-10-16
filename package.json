@@ -9,7 +9,8 @@
         "preview": "vite preview --host 127.0.0.1",
         "test": "vitest run",
         "test:e2e": "playwright test",
-        "mcp:playwright": "playwright-mcp --browser chrome --isolated"
+        "mcp:playwright": "playwright-mcp --browser chrome --isolated",
+        "test:mcp": "node scripts/mcp-audit.mjs"
     },
     "dependencies": {
         "@fontsource/inter": "^5.2.0",
