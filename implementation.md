@@ -39,3 +39,5 @@ Patched Vite/Vitest versions resolve the initial dependency advisories; npm audi
 shadcn MCP unavailable: used the official shadcn CLI to generate components, then corrected its alias output and retained local utilities.
 UI/UX Pro Max search blocked by absent Python runtime; its instructions and available UX guidelines were applied manually. Stripe reference remains unchanged.
 
+Playwright MCP is installed as `@playwright/mcp`. Start it for an MCP client with `npm run mcp:playwright`; it uses the installed Chrome channel and an isolated browser profile. The package entrypoint is also available through `npx playwright-mcp --help`.
+
