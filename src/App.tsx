@@ -1,22 +1,24 @@
 ﻿import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, CheckCircle2, ChevronRight, Clock3, FileText, Info, Layers3, Minus, Package, Plus, ShieldCheck, Sparkles, Truck } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, CheckCircle2, ChevronRight, Clock3, FileText, History, Info, Layers3, Minus, Package, Pencil, Plus, RotateCcw, ShieldCheck, Sparkles, Trash2, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { calculateTotal, cheapestIds, formatMoney, MAX_QUANTITY, parseQuantity, suppliers, validName, type Supplier, type SupplierId } from '@/lib/pricing';
+import { calculateTotal, cheapestIds, formatMoney, isCustomSupplier, quantityLimit, parseQuantity, suppliers, validName, type Supplier, type SupplierId } from '@/lib/pricing';
 import { useRequest } from '@/state';
 import { Price, usePageMotion } from '@/components/motion';
+import { SupplierForm } from '@/components/supplier-form';
+import { HistoryPage } from '@/components/history-page';
 
 const demoText = 'Bu namunaviy loyiha. Haqiqiy xarid, band qilish yoki xabar yuborish amalga oshirilmaydi.';
 
 function PageFocus() {
   const { pathname, hash, key } = useLocation();
   useEffect(() => {
-    const titles: Record<string, string> = { '/': 'A4 qog‘oz xaridi', '/compare': 'Takliflarni taqqoslash', '/confirmation': 'So‘rovni ko‘rib chiqish' };
+    const titles: Record<string, string> = { '/': 'A4 qog‘oz xaridi', '/compare': 'Takliflarni taqqoslash', '/confirmation': 'So‘rovni ko‘rib chiqish', '/history': 'Namunaviy so‘rovlar tarixi' };
     document.title = (titles[pathname] ?? 'Sahifa topilmadi') + ' — Ta’minCompare';
     const target = hash === '#quantity' ? document.getElementById('quantity') : hash === '#offers' ? document.querySelector<HTMLElement>('[role="radio"]') : null;
     if (target) {
@@ -33,8 +35,10 @@ function Brand() {
   return <Link to="/" className="brand" aria-label="Ta’minCompare — bosh sahifa"><span className="brand-icon"><Layers3 size={22} aria-hidden="true" /></span><span>Ta’min<span className="brand-accent">Compare</span></span></Link>;
 }
 function Header() {
+  const { history } = useRequest();
   return <header className="site-header"><div className="container nav-inner"><Brand /><nav aria-label="Asosiy navigatsiya">
     <NavLink to="/" end className="home-link">Bosh sahifa</NavLink>
+    <NavLink to="/history" className="history-link"><History size={17} aria-hidden="true" />So‘rovlar tarixi{history.length > 0 && <span className="history-count">{history.length}</span>}</NavLink>
     <Button asChild className="nav-cta"><NavLink to="/compare">Narxlarni taqqoslash <ArrowUpRight size={16} aria-hidden="true" /></NavLink></Button>
   </nav></div></header>;
 }
@@ -46,13 +50,13 @@ function DemoNotice({ compact = false }: { compact?: boolean }) {
 }
 function Steps({ current }: { current: 1 | 2 | 3 }) {
   const navigate = useNavigate();
-  const { quantityText, supplierId } = useRequest();
+  const { quantityText, supplierId, offers } = useRequest();
   const [hint, setHint] = useState('');
   function goToStep(index: number) {
     setHint('');
     if (index === 0) navigate('/compare#quantity');
     else if (index === 1) navigate('/compare#offers');
-    else if (parseQuantity(quantityText) === null) {
+    else if (parseQuantity(quantityText, offers) === null) {
       setHint('Davom etish uchun kamida 1 bo‘lgan butun miqdorni kiriting.');
       navigate('/compare#quantity');
     } else if (!supplierId) {
@@ -109,36 +113,48 @@ function PricingExplainer() {
   return <section className="container pricing-explainer" data-reveal><div className="explainer-copy"><span className="eyebrow">HISOB-KITOB QANDAY ISHLAYDI?</span><h2>Miqdor o‘zgarsa,<br />eng mos taklif ham o‘zgaradi.</h2><p>5 va 10 pachka uchun hisobni sinab ko‘ring. Yetkazish haqi har bir buyurtmaga faqat bir marta qo‘shiladi.</p><div className="formula"><span>Miqdor</span><b>×</b><span>Birlik narxi</span><b>+</b><span>Yetkazish</span><b>=</b><strong>Jami</strong></div><Link className="text-link" to="/compare#quantity">O‘z miqdoringizni kiriting <ArrowRight size={17} aria-hidden="true" /></Link></div><div className="example-calculator"><div className="example-header"><h3>Amalda sinab ko‘ring</h3><div className="quantity-presets" aria-label="Namunaviy miqdor">{[5, 10].map(value => <button type="button" key={value} aria-pressed={quantity === value} onClick={() => setQuantity(String(value))}>{value} pachka</button>)}</div></div><p className="example-quantity">{quantity === null ? 'Hisoblash uchun miqdorni tanlang' : quantity + ' pachka uchun jami xarajat'}</p><div className="example-rows">{suppliers.map(supplier => <div className={'example-row ' + (cheapest.includes(supplier.id) ? 'example-best' : '')} key={supplier.id}><span className={'supplier-avatar avatar-' + supplier.id}>{supplier.id}</span><div><strong>{supplier.name}</strong><span>{supplier.days} kunda yetkazish</span></div><strong><Price value={quantity === null ? '—' : formatMoney(calculateTotal(supplier, quantity))} /></strong>{cheapest.includes(supplier.id) && <CheckCircle2 size={17} className="example-check" aria-label="Eng arzon" />}</div>)}</div><p className="example-note"><Info size={15} aria-hidden="true" />Tanlangan miqdor taqqoslash sahifasida ham saqlanadi.</p></div></section>;
 }
 function QuantityControl() {
-  const { quantityText, setQuantity } = useRequest();
-  const quantity = parseQuantity(quantityText);
-  function step(delta: number) { setQuantity(String(quantity === null ? 1 : Math.max(1, Math.min(MAX_QUANTITY, quantity + delta)))); }
+  const { quantityText, setQuantity, offers } = useRequest();
+  const quantity = parseQuantity(quantityText, offers);
+  const limit = quantityLimit(offers);
+  function step(delta: number) { setQuantity(String(quantity === null ? 1 : Math.max(1, Math.min(limit, quantity + delta)))); }
   return <section className="quantity-section" aria-labelledby="quantity-label"><div><Label htmlFor="quantity" id="quantity-label" className="quantity-title">Nechta pachka kerak?</Label><p>Bir pachka — hisoblash birligi. Miqdorni o‘zgartirib ko‘ring.</p></div>
     <div className="quantity-field"><div className={'stepper ' + (quantity === null ? 'invalid' : '')}>
       <Button variant="ghost" size="icon" aria-label="Miqdorni kamaytirish" onClick={() => step(-1)} disabled={quantity === 1}><Minus size={18} aria-hidden="true" /></Button>
       <Input id="quantity" type="text" inputMode="numeric" autoComplete="off" value={quantityText} onChange={event => setQuantity(event.target.value)} aria-invalid={quantity === null} aria-describedby={quantity === null ? 'quantity-error' : 'quantity-hint'} />
-      <Button variant="ghost" size="icon" aria-label="Miqdorni oshirish" onClick={() => step(1)} disabled={quantity === MAX_QUANTITY}><Plus size={18} aria-hidden="true" /></Button>
+      <Button variant="ghost" size="icon" aria-label="Miqdorni oshirish" onClick={() => step(1)} disabled={quantity === limit}><Plus size={18} aria-hidden="true" /></Button>
     </div><span id="quantity-hint" className="quantity-unit">pachka</span></div>
-    {quantity === null && <p id="quantity-error" className="field-error quantity-error" role="alert">{Number(quantityText) > MAX_QUANTITY ? 'Miqdor juda katta. Kichikroq butun son kiriting.' : 'Kamida 1 bo‘lgan butun son kiriting.'}</p>}
+    {quantity === null && <p id="quantity-error" className="field-error quantity-error" role="alert">{Number(quantityText) > limit ? 'Miqdor ushbu takliflar uchun juda katta. Kichikroq butun son kiriting.' : 'Kamida 1 bo‘lgan butun son kiriting.'}</p>}
   </section>;
 }
-function SupplierCard({ supplier, cheapest, tied }: { supplier: Supplier; cheapest: boolean; tied: boolean }) {
-  const { quantityText, supplierId, setSupplier } = useRequest();
-  const quantity = parseQuantity(quantityText);
+function SupplierAvatar({ supplier }: { supplier: Supplier }) {
+  return <span className={'supplier-avatar avatar-' + (isCustomSupplier(supplier) ? 'custom' : supplier.id)}>{isCustomSupplier(supplier) ? Array.from(supplier.name.trim())[0]?.toLocaleUpperCase('uz') : supplier.id}</span>;
+}
+function SupplierCard({ supplier, cheapest, tied, onEdit, onDelete }: { supplier: Supplier; cheapest: boolean; tied: boolean; onEdit: (supplier: Supplier) => void; onDelete: (id: string) => void }) {
+  const { quantityText, supplierId, setSupplier, offers } = useRequest();
+  const quantity = parseQuantity(quantityText, offers);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const selected = supplierId === supplier.id;
   return <Card className={'supplier-card ' + (selected ? 'selected' : '')} data-testid={'supplier-' + supplier.id} onClick={event => { if (!(event.target as HTMLElement).closest('label,button,a,input')) setSupplier(supplier.id); }}>
-    <div className="card-heading"><span className={'supplier-avatar avatar-' + supplier.id}>{supplier.id}</span><span className="card-category">A4 QOG‘OZ</span>{selected && <span className="selected-check" aria-label="Tanlangan"><Check size={15} aria-hidden="true" /></span>}</div>
+    <div className="card-heading"><SupplierAvatar supplier={supplier} /><span className="card-category">{isCustomSupplier(supplier) ? 'Siz qo‘shgan taklif' : 'A4 QOG‘OZ'}</span>{selected && <span className="selected-check" aria-label="Tanlangan"><Check size={15} aria-hidden="true" /></span>}</div>
     <h2>{supplier.name}</h2>
-    <div className="card-tag-line">{cheapest ? <span className="best-badge"><Sparkles size={13} aria-hidden="true" />{tied ? 'Eng arzon — teng taklif' : 'Eng arzon taklif'}</span> : <span className="supplier-descriptor">{supplier.id === 'A' ? 'Eng qisqa yetkazish muddati' : supplier.id === 'B' ? 'Bir pachka narxi eng past' : 'Yetkazish haqi olinmaydi'}</span>}</div>
+    <div className="card-tag-line">{cheapest ? <span className="best-badge"><Sparkles size={13} aria-hidden="true" />{tied ? 'Eng arzon — teng taklif' : 'Eng arzon taklif'}</span> : <span className="supplier-descriptor">{supplier.deliveryFee === 0 ? 'Yetkazish haqi olinmaydi' : supplier.days + ' kunda yetkazish'}</span>}</div>
     <dl className="price-details"><div><dt><FileText size={16} aria-hidden="true" />Bir pachka narxi</dt><dd>{formatMoney(supplier.unitPrice)}</dd></div><div><dt><Truck size={16} aria-hidden="true" />Yetkazish haqi</dt><dd className={supplier.deliveryFee === 0 ? 'free-delivery' : ''}>{supplier.deliveryFee === 0 ? 'Bepul' : formatMoney(supplier.deliveryFee)}</dd></div><div><dt><Clock3 size={16} aria-hidden="true" />Yetkazish muddati</dt><dd>{supplier.days} kun</dd></div></dl>
     <div className="card-total"><span>Jami xarajat <small>{quantity === null ? 'Miqdorni tekshiring' : quantity + ' pachka uchun'}</small></span><strong data-testid={'total-' + supplier.id}><Price value={quantity === null ? '—' : formatMoney(calculateTotal(supplier, quantity))} /></strong><p>{quantity === null ? 'Hisoblash uchun to‘g‘ri miqdor kiriting.' : quantity + ' × ' + formatMoney(supplier.unitPrice) + ' + ' + formatMoney(supplier.deliveryFee)}</p></div>
     <Label htmlFor={'select-' + supplier.id} className={'select-offer ' + (selected ? 'is-selected' : '')}><RadioGroupItem id={'select-' + supplier.id} value={supplier.id} aria-label={supplier.name + ' taklifini tanlash'} /><span>{selected ? 'Taklif tanlandi' : 'Taklifni tanlash'}</span>{selected ? <Check size={16} aria-hidden="true" /> : <ArrowRight size={16} aria-hidden="true" />}</Label>
+    {isCustomSupplier(supplier) && <div className="custom-offer-actions"><Button variant="ghost" aria-label={supplier.name + ' taklifini tahrirlash'} onClick={() => onEdit(supplier)}><Pencil size={15} aria-hidden="true" />Tahrirlash</Button><Button variant="ghost" className="delete-action" aria-label={supplier.name + ' taklifini o‘chirish'} onClick={() => setConfirmDelete(true)}><Trash2 size={15} aria-hidden="true" />O‘chirish</Button></div>}
+    {confirmDelete && <div className="delete-confirm" role="group" aria-label="Taklifni o‘chirishni tasdiqlash"><p>Taklif o‘chirilsinmi? Saqlangan so‘rovlar tarixda qoladi.</p><div><Button variant="outline" onClick={() => setConfirmDelete(false)}>Bekor qilish</Button><Button variant="destructive" onClick={() => onDelete(supplier.id)}>Ha, o‘chirish</Button></div></div>}
   </Card>;
 }
 function Compare() {
-  const { quantityText, supplierId, setSupplier } = useRequest();
-  const quantity = parseQuantity(quantityText);
-  const cheapest = quantity === null ? [] : cheapestIds(quantity);
-  const selected = suppliers.find(supplier => supplier.id === supplierId);
+  const { quantityText, supplierId, setSupplier, offers, saveSupplier, deleteSupplier, resetDraft } = useRequest();
+  const quantity = parseQuantity(quantityText, offers);
+  const cheapest = quantity === null ? [] : cheapestIds(quantity, offers);
+  const selected = offers.find(supplier => supplier.id === supplierId);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  function closeForm() { setFormOpen(false); setEditingSupplier(null); requestAnimationFrame(() => addButton.current?.focus()); }
+  function openForm(supplier: Supplier | null) { setEditingSupplier(supplier); setFormOpen(true); }
   const canContinue = quantity !== null && selected !== undefined;
   function handleOfferKeys(event: KeyboardEvent<HTMLDivElement>) {
     const keys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
@@ -154,9 +170,11 @@ function Compare() {
   }
   return <main id="main-content" className="container workspace"><div className="workspace-top"><span className="eyebrow"><span className="tiny-dot" /> XARIDNI REJALASHTIRING</span><span className="subtle-label"><FileText size={14} aria-hidden="true" /> A4 qog‘oz</span></div>
     <div className="page-heading"><h1 tabIndex={-1}>Yetkazib beruvchilarni taqqoslang</h1><p>Miqdorni kiriting va jami xarajat hamda yetkazish muddatiga qarab eng mos taklifni tanlang.</p></div>
+    <div className="draft-toolbar"><p><ShieldCheck size={16} aria-hidden="true" />Hisob-kitobingiz shu brauzerda avtomatik saqlanadi.</p><Button variant="ghost" onClick={() => { resetDraft(); closeForm(); document.getElementById('quantity')?.focus(); }}><RotateCcw size={16} aria-hidden="true" />Yangi hisob-kitob</Button></div>
     <Steps current={2} /><QuantityControl />
-    <div className="comparison-heading" id="offers"><h2>Mavjud takliflar <span>3 ta ta’minotchi</span></h2><span className="comparison-legend"><span /> Eng past jami narx belgilanadi</span></div>
-    <RadioGroup onKeyDownCapture={handleOfferKeys} value={supplierId ?? ''} onValueChange={value => setSupplier(value as SupplierId)} aria-label="Yetkazib beruvchini tanlang" className="supplier-grid">{suppliers.map(supplier => <SupplierCard key={supplier.id} supplier={supplier} cheapest={cheapest.includes(supplier.id)} tied={cheapest.length > 1} />)}</RadioGroup>
+    <div className="comparison-heading" id="offers"><h2>Mavjud takliflar <span>{offers.length} ta ta’minotchi</span></h2><div className="comparison-tools"><span className="comparison-legend"><span />Eng past jami narx belgilanadi</span><Button ref={addButton} variant="outline" onClick={() => openForm(null)}><Plus size={17} aria-hidden="true" />Ta’minotchi qo‘shish</Button></div></div>
+    {formOpen && <SupplierForm key={editingSupplier?.id ?? 'new'} supplier={editingSupplier} onClose={closeForm} onSave={values => { saveSupplier(values, editingSupplier?.id); closeForm(); }} />}
+    <RadioGroup onKeyDownCapture={handleOfferKeys} value={supplierId ?? ''} onValueChange={value => setSupplier(value as SupplierId)} aria-label="Yetkazib beruvchini tanlang" className="supplier-grid">{offers.map(supplier => <SupplierCard key={supplier.id} supplier={supplier} cheapest={cheapest.includes(supplier.id)} tied={cheapest.length > 1} onEdit={openForm} onDelete={id => { deleteSupplier(id); if (editingSupplier?.id === id) closeForm(); requestAnimationFrame(() => addButton.current?.focus()); }} />)}</RadioGroup>
     <div className="calculation-note"><Info size={16} aria-hidden="true" /><p>Jami xarajat = miqdor × bir pachka narxi + yetkazish haqi. Yetkazish haqi buyurtmaga faqat bir marta qo‘shiladi.</p></div>
     <p className="sr-only" aria-live="polite" aria-atomic="true">{selected && quantity !== null ? selected.name + ' tanlandi. Jami ' + formatMoney(calculateTotal(selected, quantity)) + '.' : ''}</p>
     <section className={'selection-summary ' + (selected ? 'has-selection' : '')} aria-label="Tanlangan taklif"><div className="summary-icon">{selected ? <CheckCheck size={23} aria-hidden="true" /> : <Package size={23} aria-hidden="true" />}</div><div className="summary-copy"><h2>{selected ? selected.name : 'Sizga mos taklifni tanlang'}</h2><p>{selected ? (quantity === null ? 'Davom etish uchun miqdorni to‘g‘rilang.' : quantity + ' pachka · Yetkazish: ' + selected.days + ' kun') : 'Davom etish uchun yuqoridagi ta’minotchilardan birini belgilang.'}</p></div><div className="summary-action">{selected && <strong data-testid="selected-total">{quantity === null ? '—' : formatMoney(calculateTotal(selected, quantity))}</strong>}{canContinue ? <Button asChild><Link to="/confirmation">So‘rovni ko‘rib chiqish <ArrowRight size={17} aria-hidden="true" /></Link></Button> : <Button disabled>So‘rovni ko‘rib chiqish <ArrowRight size={17} aria-hidden="true" /></Button>}</div></section>
@@ -164,9 +182,9 @@ function Compare() {
   </main>;
 }
 function Confirmation() {
-  const { quantityText, supplierId, name, setName, receipt, submit } = useRequest();
-  const quantity = parseQuantity(quantityText);
-  const supplier = suppliers.find(item => item.id === supplierId);
+  const { quantityText, supplierId, name, setName, receipt, submit, offers } = useRequest();
+  const quantity = parseQuantity(quantityText, offers);
+  const supplier = offers.find(item => item.id === supplierId);
   const [nameError, setNameError] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
